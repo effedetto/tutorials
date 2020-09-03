@@ -1,6 +1,7 @@
 package com.baeldung.batch;
 
 import java.net.MalformedURLException;
+import java.sql.SQLException;
 
 import javax.sql.DataSource;
 
@@ -19,60 +20,78 @@ import org.springframework.jdbc.datasource.init.DataSourceInitializer;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import oracle.ucp.jdbc.PoolDataSource;
+import oracle.ucp.jdbc.PoolDataSourceFactory;
+
 @Configuration
 @EnableBatchProcessing
 public class SpringConfig {
 
-    @Value("org/springframework/batch/core/schema-drop-sqlite.sql")
-    private Resource dropReopsitoryTables;
+	@Value("org/springframework/batch/core/schema-drop-sqlite.sql")
+	private Resource dropReopsitoryTables;
 
-    @Value("org/springframework/batch/core/schema-sqlite.sql")
-    private Resource dataReopsitorySchema;
+	@Value("org/springframework/batch/core/schema-sqlite.sql")
+	private Resource dataReopsitorySchema;
 
-    @Bean
-    public DataSource dataSource() {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setDriverClassName("org.sqlite.JDBC");
-        dataSource.setUrl("jdbc:sqlite:repository.sqlite");
-        return dataSource;
-    }
+	//    @Bean
+	//    public DataSource dataSource() {
+	//        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+	//        dataSource.setDriverClassName("org.sqlite.JDBC");
+	//        dataSource.setUrl("jdbc:sqlite:repository.sqlite");
+	//        return dataSource;
+	//    }
 
-    @Bean
-    public DataSourceInitializer dataSourceInitializer(DataSource dataSource) throws MalformedURLException {
-        ResourceDatabasePopulator databasePopulator = new ResourceDatabasePopulator();
 
-        databasePopulator.addScript(dropReopsitoryTables);
-        databasePopulator.addScript(dataReopsitorySchema);
-        databasePopulator.setIgnoreFailedDrops(true);
+	@Bean
+	public DataSource dataSource() throws SQLException {
+		PoolDataSource dataSource = PoolDataSourceFactory.getPoolDataSource();
+		dataSource.setUser("books");
+		dataSource.setPassword("books");
+		dataSource.setConnectionFactoryClassName("oracle.jdbc.pool.OracleDataSource");
+		dataSource.setURL("jdbc:oracle:thin:@//localhost:11521/ORCLPDB1");
+		dataSource.setFastConnectionFailoverEnabled(true);
+		dataSource.setInitialPoolSize(5);
+		dataSource.setMinPoolSize(5);
+		dataSource.setMaxPoolSize(10);
+		return dataSource;
+	}
 
-        DataSourceInitializer initializer = new DataSourceInitializer();
-        initializer.setDataSource(dataSource);
-        initializer.setDatabasePopulator(databasePopulator);
+	@Bean
+	public DataSourceInitializer dataSourceInitializer(DataSource dataSource) throws MalformedURLException {
+		ResourceDatabasePopulator databasePopulator = new ResourceDatabasePopulator();
 
-        return initializer;
-    }
+		databasePopulator.addScript(dropReopsitoryTables);
+		databasePopulator.addScript(dataReopsitorySchema);
+		databasePopulator.setIgnoreFailedDrops(true);
 
-    private JobRepository getJobRepository() throws Exception {
-        JobRepositoryFactoryBean factory = new JobRepositoryFactoryBean();
-        factory.setDataSource(dataSource());
-        factory.setTransactionManager(getTransactionManager());
-        // JobRepositoryFactoryBean's methods Throws Generic Exception,
-        // it would have been better to have a specific one
-        factory.afterPropertiesSet();
-        return (JobRepository) factory.getObject();
-    }
+		DataSourceInitializer initializer = new DataSourceInitializer();
+		initializer.setDataSource(dataSource);
+		initializer.setDatabasePopulator(databasePopulator);
 
-    private PlatformTransactionManager getTransactionManager() {
-        return new ResourcelessTransactionManager();
-    }
+		return initializer;
+	}
 
-    public JobLauncher getJobLauncher() throws Exception {
-        SimpleJobLauncher jobLauncher = new SimpleJobLauncher();
-        // SimpleJobLauncher's methods Throws Generic Exception,
-        // it would have been better to have a specific one
-        jobLauncher.setJobRepository(getJobRepository());
-        jobLauncher.afterPropertiesSet();
-        return jobLauncher;
-    }
+	private JobRepository getJobRepository() throws Exception {
+		JobRepositoryFactoryBean factory = new JobRepositoryFactoryBean();
+		factory.setDataSource(dataSource());
+		factory.setTransactionManager(getTransactionManager());
+		// JobRepositoryFactoryBean's methods Throws Generic Exception,
+		// it would have been better to have a specific one
+		factory.afterPropertiesSet();
+		return (JobRepository) factory.getObject();
+	}
+
+	private PlatformTransactionManager getTransactionManager() {
+		return new ResourcelessTransactionManager();
+	}
+
+	public JobLauncher getJobLauncher() throws Exception {
+		SimpleJobLauncher jobLauncher = new SimpleJobLauncher();
+		// SimpleJobLauncher's methods Throws Generic Exception,
+		// it would have been better to have a specific one
+		jobLauncher.setJobRepository(getJobRepository());
+		jobLauncher.afterPropertiesSet();
+		return jobLauncher;
+	}
 
 }

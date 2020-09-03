@@ -100,6 +100,24 @@ public class SpringBatchConfig {
     public Job job(@Qualifier("step1") Step step1) {
         return jobBuilderFactory.get("firstBatchJob").start(step1).build();
     }
+    
+    
+    //TODO change reader processor  writer
+    @Bean
+    protected Step step_first(@Qualifier("itemProcessor") ItemProcessor<Transaction, Transaction> processor, ItemWriter<Transaction> writer) throws ParseException {
+        return stepBuilderFactory
+                .get("step_first")
+                .<Transaction, Transaction> chunk(10)
+                .reader(itemReader(inputCsv))
+                .processor(processor)
+                .writer(writer)
+                .build();
+    }
+    
+	    @Bean(name = "rdyjob")
+	    public Job mds_job(@Qualifier("step_first") Step step_first) {
+	        return jobBuilderFactory.get("firstBatchJob").start(step_first).build();
+	    }
 
     @Bean
     public Step skippingStep(@Qualifier("skippingItemProcessor") ItemProcessor<Transaction, Transaction> processor,
